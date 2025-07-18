@@ -34,12 +34,18 @@
       when: backup_result.stdout is regex('Configuration backup saved') == false
 
     # Downloading the backup
-    - name: Download backup file
-      ansible.builtin.command: >
-        scp -i ~/.ssh/id_rsa {{ ansible_ssh_common_args }} {{ ansible_user }}@{{ ansible_host }}:/backup_{{ inventory_hostname }}.backup
-        {{ backup_dir }}/
-      when: backup_result.stdout is regex('Configuration backup saved') == true
+    #- name: Download backup file
+    # ansible.builtin.command: >
+    #  scp -i ~/.ssh/id_rsa {{ ansible_ssh_common_args }} {{ ansible_user }}@{{ ansible_host }}:/backup_{{ inventory_hostname }}.backup
+    # {{ backup_dir }}/
+    #when: backup_result.stdout is regex('Configuration backup saved') == true
 
+    - name: "Copy file from RouterOS"
+      ansible.netcommon.net_get:
+        src: backup_{{ inventory_hostname }}.backup  # Path on the RouterOS device
+        dest: /home/semaphore/backups/{{inventory_hostname}}/backup_{{ inventory_hostname }}.backup # Path on the Ansible control node
+        network_os: routeros
+    
     # Creating an export on the device
     - name: Create export file on device
       community.routeros.command:
