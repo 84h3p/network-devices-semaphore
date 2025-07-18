@@ -8,7 +8,7 @@
     - ansible.netcommon
 
   vars:
-    backup_dir: "/home/ansible/backups/{{ inventory_hostname }}"
+    backup_dir: "/home/semaphore/backups/{{ inventory_hostname }}"
     ansible_ssh_common_args: '-o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostKeyAlgorithms=+ssh-rsa -o Ciphers=+aes256-cbc'
 
   tasks:
@@ -33,13 +33,12 @@
        msg: "backup failed"
       when: backup_result.stdout is regex('Configuration backup saved') == false
 
-    # Downloading the backup
-    - name: Download backup file
-      ansible.builtin.command: >
-        scp {{ ansible_ssh_common_args }} {{ ansible_user }}@{{ ansible_host }}:/backup_{{ inventory_hostname }}.backup
-        {{ backup_dir }}/
-      when: backup_result.stdout is regex('Configuration backup saved') == true
-
+    - name: "Download the backup"
+      ansible.netcommon.net_get:
+        src: backup_{{ inventory_hostname }}.backup  # Path on the RouterOS device
+        dest: /home/semaphore/backups/{{inventory_hostname}}/backup_{{ inventory_hostname }}.backup # Path on the Ansible control node
+        network_os: routeros
+    
     # Creating an export on the device
     - name: Create export file on device
       community.routeros.command:
@@ -49,9 +48,10 @@
 
     # Downloading the export
     - name: Download export file
-      ansible.builtin.command: >
-        scp {{ ansible_ssh_common_args }} {{ ansible_user }}@{{ ansible_host }}:/export_{{ inventory_hostname }}.rsc
-        {{ backup_dir }}/
+      ansible.netcommon.net_get:
+        src: export_{{ inventory_hostname }}.rsc  # Path on the RouterOS device
+        dest: /home/semaphore/backups/{{inventory_hostname}}/export_{{ inventory_hostname }}.export # Path on the Ansible control node
+        network_os: routeros
 
     # Collecting information about system resources
     - name: Gather system resources
