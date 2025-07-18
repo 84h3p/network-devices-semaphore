@@ -1,0 +1,73 @@
+---
+- name: MikroTik Configuration Backup
+  hosts: mikrotik
+  gather_facts: no
+  connection: ansible.netcommon.network_cli
+  collections:
+    - community.routeros
+    - ansible.netcommon
+
+  vars:
+    backup_dir: "/home/ansible/backups/{{ inventory_hostname }}"
+    ansible_ssh_common_args: '-o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostKeyAlgorithms=+ssh-rsa -o Ciphers=+aes256-cbc'
+
+  tasks:
+    # Creating a backup directory
+    - name: Ensure backup directory exists
+      local_action:
+        module: file
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: 0755
+
+    # Creating a backup on the device
+    - name: Create backup file on device
+      community.routeros.command:
+        commands:
+          - /system backup save name=backup_{{ inventory_hostname }}
+      register: backup_result
+
+    # Alert for backup
+    - name: alert
+      debug:
+       msg: "backup failed"
+      when: backup_result.stdout is regex('Configuration backup saved') == false
+
+    # Downloading the backup
+    - name: Download backup file
+      ansible.builtin.command: >
+        scp {{ ansible_ssh_common_args }} {{ ansible_user }}@{{ ansible_host }}:/backup_{{ inventory_hostname }}.backup
+        {{ backup_dir }}/
+      when: backup_result.stdout is regex('Configuration backup saved') == true
+
+    # Creating an export on the device
+    - name: Create export file on device
+      community.routeros.command:
+        commands:
+          - /export file=export_{{ inventory_hostname }}
+      register: backup_result
+
+    # Downloading the export
+    - name: Download export file
+      ansible.builtin.command: >
+        scp {{ ansible_ssh_common_args }} {{ ansible_user }}@{{ ansible_host }}:/export_{{ inventory_hostname }}.rsc
+        {{ backup_dir }}/
+
+    # Collecting information about system resources
+    - name: Gather system resources
+      community.routeros.command:
+       commands:
+        - /system resource print
+      register: system_resource_print
+
+    # Saving information about system resources
+    - name: Save system resources to file
+      copy:
+        content: |
+         {% for line in system_resource_print.stdout[0].split('\n') %}
+         {% if ':' in line %}
+         {{ line.split(':', 1)[0] | trim }}={{ line.split(':', 1)[1] | trim }}
+         {% endif %}
+         {% endfor %}
+        dest: "{{ backup_dir }}/routeros_system_resources_{{ inventory_hostname }}.txt"
+      delegate_to: localhost
