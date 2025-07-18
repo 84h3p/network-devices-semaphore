@@ -8,7 +8,6 @@
     - ansible.netcommon
 
   vars:
-    backup_dir: "/home/semaphore/backups/{{ inventory_hostname }}"
     ansible_ssh_common_args: '-o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostKeyAlgorithms=+ssh-rsa -o Ciphers=+aes256-cbc'
 
   tasks:
