@@ -36,7 +36,7 @@
     # Downloading the backup
     - name: Download backup file
       ansible.builtin.command: >
-        scp {{ ansible_ssh_common_args }} {{ ansible_user }}@{{ ansible_host }}:/backup_{{ inventory_hostname }}.backup
+        scp -i ~/.ssh/id_rsa {{ ansible_ssh_common_args }} {{ ansible_user }}@{{ ansible_host }}:/backup_{{ inventory_hostname }}.backup
         {{ backup_dir }}/
       when: backup_result.stdout is regex('Configuration backup saved') == true
 
